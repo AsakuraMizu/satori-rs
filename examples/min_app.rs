@@ -1,30 +1,24 @@
-use satori::{AppT, ChannelType, Event, Satori, SdkT, SATORI};
-use serde_json::{json, Value};
-use std::{
-    net::{IpAddr, Ipv4Addr},
-    sync::Arc,
+use std::{net::IpAddr, str::FromStr, sync::Arc};
+
+use satori::{
+    net::sdk::{NetSDK, NetSDKConfig},
+    AppT, ChannelType, Event, Satori, SdkT, SATORI,
 };
-use tokio::task::JoinHandle;
-use tracing::info;
+use serde_json::{json, Value};
+use tracing::{debug, info};
 use tracing_subscriber::filter::LevelFilter;
 
 pub struct Echo {}
 
-#[async_trait::async_trait]
 impl AppT for Echo {
-    type Config = ();
-    async fn start<S, A>(
-        &self,
-        _s: &Arc<Satori<S, A>>,
-        _config: Self::Config,
-    ) -> Vec<JoinHandle<()>>
+    async fn start<S, A>(&self, _s: &Arc<Satori<S, A>>)
     where
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
     {
-        vec![]
     }
-    async fn handle_event<S, A>(&self, s: &Arc<Satori<S, A>>, mut event: Event)
+
+    async fn handle_event<S, A>(&self, s: &Arc<Satori<S, A>>, event: Event)
     where
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
@@ -37,10 +31,8 @@ impl AppT for Echo {
             }
         }
         if let Some(message) = event
-            .extra
-            .remove("message")
-            .and_then(|v| serde_json::from_value::<satori::Message>(v).ok())
-            .filter(|m| m.content.starts_with("echo"))
+            .message
+            .filter(|m| m.content.as_ref().is_some_and(|c| c.starts_with("echo")))
         {
             let bot = satori::BotId {
                 id: event.self_id,
@@ -48,9 +40,9 @@ impl AppT for Echo {
             };
             if let Some(ch) = event.channel {
                 match ch.ty {
-                    ChannelType::Text => {
-                        let r = s
-                            .call_api::<Value>(
+                    Some(ChannelType::Text) => {
+                        let r: Result<Value, _> = s
+                            .call_api(
                                 "message.create",
                                 &bot,
                                 json!({
@@ -59,7 +51,7 @@ impl AppT for Echo {
                                 }),
                             )
                             .await;
-                        println!("......r:{:?}", r);
+                        debug!("api response:{:?}", r);
                     }
                     // ChannelType::Direct => {
                     //     let _ch = s
@@ -91,14 +83,13 @@ async fn main() {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_filter(filter))
         .init();
-    let app = Satori::new_app(Echo {});
-    app.start_and_wait(
-        vec![satori::NetSDKConfig {
-            host: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+    let app = Satori::new(
+        NetSDK::new(NetSDKConfig {
+            host: IpAddr::from_str("127.0.0.1").unwrap(),
             port: 5140,
-            authorize: None,
-        }],
-        (),
-    )
-    .await;
+            token: None,
+        }),
+        Echo {},
+    );
+    app.start().await;
 }

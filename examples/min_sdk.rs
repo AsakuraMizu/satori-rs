@@ -1,36 +1,40 @@
-use satori::{AppT, BotId, CallApiError, Login, Satori, SdkT};
-use serde_json::Value;
-use std::{
-    net::{IpAddr, Ipv4Addr},
-    sync::Arc,
+use std::{net::IpAddr, str::FromStr, sync::Arc};
+
+use satori::{
+    net::app::{NetAPPConfig, NetApp},
+    ApiError, AppT, BotId, CallApiError, Login, Satori, SdkT,
 };
-use tokio::task::JoinHandle;
+use serde::Serialize;
 use tracing_subscriber::filter::LevelFilter;
 
 pub struct Echo {}
 
-#[async_trait::async_trait]
 impl SdkT for Echo {
-    type Config = ();
-    async fn start<S, A>(
-        &self,
-        _s: &Arc<Satori<S, A>>,
-        _config: Self::Config,
-    ) -> Vec<JoinHandle<()>>
+    async fn start<S, A>(&self, _s: &Arc<Satori<S, A>>)
     where
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
     {
-        vec![]
     }
-    async fn call_api(
+
+    async fn call_api<T, S, A>(
         &self,
-        _api: &str,
+        s: &Arc<Satori<S, A>>,
+        api: &str,
         _bot: &BotId,
-        _data: Value,
-    ) -> Result<String, CallApiError> {
-        Err(CallApiError::ServerError(500))
+        _data: T,
+    ) -> Result<String, CallApiError>
+    where
+        T: Serialize + Send,
+        S: SdkT + Send + Sync + 'static,
+        A: AppT + Send + Sync + 'static,
+    {
+        if api == "stop" {
+            s.shutdown();
+        }
+        Err(ApiError::ServerError(500).into())
     }
+
     async fn get_logins(&self) -> Vec<Login> {
         vec![]
     }
@@ -47,14 +51,13 @@ async fn main() {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_filter(filter))
         .init();
-    let sdk = Satori::new_sdk(Echo {});
-    sdk.start_and_wait(
-        (),
-        vec![satori::NetAPPConfig {
-            host: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+    let sdk = Satori::new(
+        Echo {},
+        NetApp::new(NetAPPConfig {
+            host: IpAddr::from_str("127.0.0.1").unwrap(),
             port: 5141,
-            authorize: None,
-        }],
-    )
-    .await;
+            token: None,
+        }),
+    );
+    sdk.start().await;
 }

@@ -117,7 +117,7 @@ impl NetApp {
                 return Err(ApiError::Forbidden.into());
             }
         }
-        s.call_api(&api, &BotId { platform, id }, data).await
+        s.call_api(&api, &BotId { platform, id }, &data).await
     }
 }
 
@@ -248,6 +248,7 @@ impl IntoResponse for CallApiError {
             Self::ApiError(ApiError::NotFound) => StatusCode::NOT_FOUND,
             Self::ApiError(ApiError::MethodNotAllowed) => StatusCode::METHOD_NOT_ALLOWED,
             Self::ApiError(ApiError::ServerError(code)) => StatusCode::from_u16(*code).unwrap(),
+            Self::InvalidBot => StatusCode::NOT_FOUND,
             Self::JsonError(_) => StatusCode::BAD_REQUEST,
         };
         let body = self.to_string();

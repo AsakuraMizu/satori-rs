@@ -76,7 +76,7 @@ impl AppT for Echo {
 async fn main() {
     let filter = tracing_subscriber::filter::Targets::new()
         .with_default(LevelFilter::INFO)
-        .with_targets([(SATORI, LevelFilter::TRACE)]);
+        .with_targets([(SATORI, LevelFilter::DEBUG)]);
     use tracing_subscriber::{
         prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, Layer,
     };

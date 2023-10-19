@@ -75,9 +75,8 @@ impl SdkT for NetSDK {
                             Ok(signal) => match signal {
                                 Signal::Event { body: event, .. } => {
                                     info!(target: SATORI, "receive event: {:?}", event);
-                                    let s = s.clone();
                                     seq = event.id;
-                                    tokio::spawn(async move { s.handle_event(event).await });
+                                    s.handle_event(event).await;
                                 }
                                 Signal::Pong { .. } => {}
                                 Signal::Ready { body: Logins { logins }, .. } => {
@@ -122,7 +121,7 @@ impl SdkT for NetSDK {
         A: AppT + Send + Sync + 'static,
     {
         if !self.bots.read().await.contains(bot) {
-            return Err(ApiError::NotFound.into());
+            return Err(CallApiError::InvalidBot);
         }
 
         let mut req = self
@@ -147,6 +146,10 @@ impl SdkT for NetSDK {
             StatusCode::NOT_FOUND => Err(ApiError::NotFound.into()),
             _ => unimplemented!(),
         }
+    }
+
+    async fn has_bot(&self, bot: &BotId) -> bool {
+        self.bots.read().await.contains(bot)
     }
 
     async fn get_logins(&self) -> Vec<Login> {

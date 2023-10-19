@@ -1,3 +1,5 @@
+#![feature(concat_idents)]
+
 mod structs;
 pub use structs::*;
 
@@ -36,6 +38,8 @@ pub enum ApiError {
 pub enum CallApiError {
     #[error(transparent)]
     ApiError(#[from] ApiError),
+    #[error("invalid bot")]
+    InvalidBot,
     #[error("json error: {0}")]
     JsonError(#[from] serde_json::Error),
 }
@@ -54,9 +58,11 @@ pub trait SdkT {
         data: T,
     ) -> impl Future<Output = Result<String, CallApiError>> + Send
     where
-        T: Serialize + Send,
+        T: Serialize + Send + Sync,
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static;
+
+    fn has_bot(&self, bot: &BotId) -> impl Future<Output = bool> + Send;
 
     fn get_logins(&self) -> impl Future<Output = Vec<Login>> + Send;
 }
@@ -91,16 +97,7 @@ where
     }
 
     pub async fn start(self: &Arc<Self>) {
-        let _ = tokio::join!(
-            tokio::spawn({
-                let me = self.clone();
-                async move { me.s.start(&me).await }
-            }),
-            tokio::spawn({
-                let me = self.clone();
-                async move { me.a.start(&me).await }
-            })
-        );
+        let _ = tokio::join!(self.s.start(self), self.a.start(self));
     }
 
     pub fn shutdown(self: &Arc<Self>) {
@@ -114,7 +111,7 @@ where
         data: T,
     ) -> Result<R, CallApiError>
     where
-        T: Serialize + Send,
+        T: Serialize + Send + Sync,
         R: DeserializeOwned,
     {
         self.s.call_api(self, api, bot, data).await.and_then(|s| {
@@ -130,3 +127,9 @@ where
 
 #[cfg(feature = "net")]
 pub mod net;
+
+pub mod arc;
+pub mod tuple;
+
+mod message;
+pub use message::*;

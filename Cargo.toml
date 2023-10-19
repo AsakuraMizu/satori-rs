@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
+default = ["net"]
 net = [
     "axum",
     "futures-util",
@@ -14,7 +15,6 @@ net = [
     "reqwest",
     "tokio-tungstenite",
 ]
-default = ["net"]
 
 [dependencies]
 anyhow = "1.0.75"

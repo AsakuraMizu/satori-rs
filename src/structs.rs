@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BotId {
     pub id: String,
     pub platform: String,

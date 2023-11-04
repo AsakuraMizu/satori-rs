@@ -67,6 +67,7 @@ pub struct Login {
 pub struct User {
     pub id: String,
     pub name: Option<String>,
+    pub nick: Option<String>,
     pub avatar: Option<String>,
     pub is_bot: Option<bool>,
 }
@@ -84,7 +85,7 @@ pub enum Status {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GuildMember {
     pub user: Option<User>,
-    pub name: Option<String>,
+    pub nick: Option<String>,
     pub avatar: Option<String>,
     pub joined_at: Option<i64>,
 }

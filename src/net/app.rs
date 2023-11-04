@@ -1,5 +1,5 @@
 use std::{
-    net::{IpAddr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
 };
 
@@ -25,7 +25,19 @@ type WsMessage = axum::extract::ws::Message;
 pub struct NetAPPConfig {
     pub host: IpAddr,
     pub port: u16,
+    pub path: Option<String>,
     pub token: Option<String>,
+}
+
+impl Default for NetAPPConfig {
+    fn default() -> Self {
+        Self {
+            host: IpAddr::V4(Ipv4Addr::LOCALHOST),
+            port: 5140,
+            path: None,
+            token: None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -75,10 +87,17 @@ impl NetApp {
                                     .send(Signal::pong().to_string().into())
                                     .await
                                     .unwrap(), //todo
-                                Ok(Signal::Identify { body, .. }) => socket
-                                    .send(Signal::ready(s.s.get_logins().await).to_string().into())
-                                    .await
-                                    .unwrap(),
+                                Ok(Signal::Identify { body, .. }) => {
+                                    if let Some(token) = &token {
+                                        if body.token.as_ref() != Some(token) {
+                                            break
+                                        }
+                                    }
+                                    socket
+                                        .send(Signal::ready(s.s.get_logins().await).to_string().into())
+                                        .await
+                                        .unwrap();
+                                },
                                 Ok(_) => unreachable!(),
                                 Err(e) => {
                                     error!(target: SATORI, "Receive signal error: {e}")
@@ -87,12 +106,10 @@ impl NetApp {
                             _ => {}
                         }
                     }
-                    _ = s.stop.cancelled() => {
-                        let _ = socket.close().await;
-                        break
-                    },
+                    _ = s.stop.cancelled() => break
                 }
             }
+            let _ = socket.close().await;
         })
     }
 
@@ -161,9 +178,16 @@ impl AppT for NetApp {
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
     {
+        let path = self.config.path.as_deref().unwrap_or("");
         let app = axum::Router::new()
-            .route("/v1/events", axum::routing::get(NetApp::ws_handler))
-            .route("/v1/:api", axum::routing::post(NetApp::api_handler))
+            .route(
+                &format!("{}/v1/events", &path),
+                axum::routing::get(NetApp::ws_handler),
+            )
+            .route(
+                &format!("{}/v1/:api", &path),
+                axum::routing::post(NetApp::api_handler),
+            )
             .with_state(AppState {
                 s: s.clone(),
                 tx: self.tx.clone(),

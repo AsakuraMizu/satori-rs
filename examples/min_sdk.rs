@@ -1,10 +1,11 @@
-use std::{net::IpAddr, str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use satori::{
     net::app::{NetAPPConfig, NetApp},
-    ApiError, AppT, BotId, CallApiError, Login, Satori, SdkT,
+    ApiError, AppT, BotId, CallApiError, Login, Satori, SdkT, SATORI,
 };
 use serde::Serialize;
+use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
 
 pub struct Echo {}
@@ -21,14 +22,16 @@ impl SdkT for Echo {
         &self,
         s: &Arc<Satori<S, A>>,
         api: &str,
-        _bot: &BotId,
-        _data: T,
+        bot: &BotId,
+        data: T,
     ) -> Result<String, CallApiError>
     where
         T: Serialize + Send,
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
     {
+        let data_str = serde_json::to_string(&data).unwrap();
+        info!(?bot, "{api}({data_str})");
         if api == "stop" {
             s.shutdown();
         }
@@ -48,7 +51,7 @@ impl SdkT for Echo {
 async fn main() {
     let filter = tracing_subscriber::filter::Targets::new()
         .with_default(LevelFilter::INFO)
-        .with_targets([("Satori", LevelFilter::TRACE)]);
+        .with_targets([(SATORI, LevelFilter::TRACE)]);
     use tracing_subscriber::{
         prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, Layer,
     };
@@ -58,9 +61,8 @@ async fn main() {
     let sdk = Satori::new(
         Echo {},
         NetApp::new(NetAPPConfig {
-            host: IpAddr::from_str("127.0.0.1").unwrap(),
             port: 5141,
-            token: None,
+            ..Default::default()
         }),
     );
     sdk.start().await;

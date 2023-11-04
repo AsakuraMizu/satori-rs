@@ -1,4 +1,9 @@
-use std::{collections::HashSet, sync::Arc, time::Duration};
+use std::{
+    collections::HashSet,
+    net::{IpAddr, Ipv4Addr},
+    sync::Arc,
+    time::Duration,
+};
 
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
@@ -16,7 +21,19 @@ type WsMessage = tokio_tungstenite::tungstenite::Message;
 pub struct NetSDKConfig {
     pub host: std::net::IpAddr,
     pub port: u16,
+    pub path: Option<String>,
     pub token: Option<String>,
+}
+
+impl Default for NetSDKConfig {
+    fn default() -> Self {
+        Self {
+            host: IpAddr::V4(Ipv4Addr::LOCALHOST),
+            port: 5140,
+            path: None,
+            token: None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -37,23 +54,28 @@ impl NetSDK {
 }
 
 impl SdkT for NetSDK {
+    #[allow(unused_assignments)]
     async fn start<S, A>(&self, s: &Arc<Satori<S, A>>)
     where
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
     {
-        let config = self.config.to_owned();
         let s = s.clone();
         let bots = self.bots.clone();
 
-        let addr = format!("ws://{}:{}/v1/events", config.host, config.port);
+        let addr = format!(
+            "ws://{}:{}{}/v1/events",
+            self.config.host,
+            self.config.port,
+            self.config.path.as_deref().unwrap_or("")
+        );
         let (mut ws_stream, _) = connect_async(&addr).await.unwrap();
         info!(target:SATORI, "WebSocket connected with {addr}");
 
         let mut seq = 0i64;
         ws_stream
             .send(
-                Signal::identify(&config.token.clone().unwrap_or_default(), seq)
+                Signal::identify(&self.config.token.clone().unwrap_or_default(), seq)
                     .to_string()
                     .into(),
             )
@@ -75,6 +97,7 @@ impl SdkT for NetSDK {
                             Ok(signal) => match signal {
                                 Signal::Event { body: event, .. } => {
                                     info!(target: SATORI, "receive event: {:?}", event);
+                                    // TODO: seq
                                     seq = event.id;
                                     s.handle_event(event).await;
                                 }
@@ -127,8 +150,11 @@ impl SdkT for NetSDK {
         let mut req = self
             .client
             .post(format!(
-                "http://{}:{}/v1/{}",
-                self.config.host, self.config.port, api
+                "http://{}:{}{}/v1/{}",
+                self.config.host,
+                self.config.port,
+                self.config.path.as_deref().unwrap_or(""),
+                api
             ))
             .header("X-Platform", &bot.platform)
             .header("X-Self-ID", &bot.id)

@@ -1,4 +1,4 @@
-use std::{net::IpAddr, str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use satori::{
     net::sdk::{NetSDK, NetSDKConfig},
@@ -76,7 +76,7 @@ impl AppT for Echo {
 async fn main() {
     let filter = tracing_subscriber::filter::Targets::new()
         .with_default(LevelFilter::INFO)
-        .with_targets([(SATORI, LevelFilter::DEBUG)]);
+        .with_targets([(SATORI, LevelFilter::TRACE)]);
     use tracing_subscriber::{
         prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, Layer,
     };
@@ -85,9 +85,8 @@ async fn main() {
         .init();
     let app = Satori::new(
         NetSDK::new(NetSDKConfig {
-            host: IpAddr::from_str("127.0.0.1").unwrap(),
-            port: 5140,
-            token: None,
+            port: 5141,
+            ..Default::default()
         }),
         Echo {},
     );

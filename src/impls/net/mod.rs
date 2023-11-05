@@ -1,9 +1,13 @@
+#[cfg(feature = "net-app")]
 pub mod app;
+#[cfg(feature = "net-sdk")]
 pub mod sdk;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Event, Login};
+use crate::structs::{Event, Login};
+
+static NET: &str = "Net";
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
@@ -56,6 +60,7 @@ impl<'de, const V: u8> Deserialize<'de> for OpCode<V> {
     }
 }
 
+#[allow(unused)]
 impl Signal {
     fn event(event: Event) -> Self {
         Self::Event {

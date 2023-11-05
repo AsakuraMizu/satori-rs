@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
-use serde::{Serialize, de::DeserializeOwned};
-
-use crate::{AppT, BotId, CallApiError, Event, Login, Satori, SdkT};
+use crate::{
+    api::IntoRawApiCall,
+    error::SatoriError,
+    structs::{BotId, Event, Login},
+    AppT, Satori, SdkT,
+};
 
 macro_rules! impl_appt_for_tuples {
     ($($i:tt $t:tt),+) => {
@@ -52,22 +55,20 @@ macro_rules! impl_sdkt_for_tuples {
                 tokio::join!($(self.$i.start(s)),*);
             }
 
-            async fn call_api<T, R, S, A>(
+            async fn call_api<T, S, A>(
                 &self,
                 s: &Arc<Satori<S, A>>,
-                api: &str,
                 bot: &BotId,
-                data: T
-            ) -> Result<R, CallApiError>
+                payload: T,
+            ) -> Result<String, SatoriError>
             where
-                T: Serialize + Send + Sync,
-                R: DeserializeOwned,
+                T: IntoRawApiCall + Send,
                 S: SdkT + Send + Sync + 'static,
                 A: AppT + Send + Sync + 'static,
             {
                 tokio::select! {
-                    $(true = self.$i.has_bot(bot) => self.$i.call_api(s, api, bot, data).await,)*
-                    else => Err(CallApiError::InvalidBot),
+                    $(true = self.$i.has_bot(bot) => self.$i.call_api(s, bot, payload).await,)*
+                    else => Err(SatoriError::InvalidBot),
                 }
             }
 

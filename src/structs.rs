@@ -107,3 +107,9 @@ pub struct Message {
     pub created_at: Option<i64>,
     pub updated_at: Option<i64>,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Pagination<T> {
+    pub data: Vec<T>,
+    pub next: String,
+}

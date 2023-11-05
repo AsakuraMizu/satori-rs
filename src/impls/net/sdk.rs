@@ -7,13 +7,19 @@ use std::{
 
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use tokio::{sync::RwLock, time::Instant};
 use tokio_tungstenite::connect_async;
 use tracing::{error, info, trace};
 
 use super::{Logins, Signal};
-use crate::{ApiError, AppT, BotId, CallApiError, Login, Satori, SdkT, Status, SATORI};
+use crate::{
+    api::IntoRawApiCall,
+    error::{ApiError, SatoriError},
+    impls::net::NET,
+    structs::{BotId, Login, Status},
+    AppT, Satori, SdkT,
+};
 
 type WsMessage = tokio_tungstenite::tungstenite::Message;
 
@@ -55,6 +61,7 @@ impl NetSDK {
 
 impl SdkT for NetSDK {
     #[allow(unused_assignments)]
+    // TODO: seq
     async fn start<S, A>(&self, s: &Arc<Satori<S, A>>)
     where
         S: SdkT + Send + Sync + 'static,
@@ -70,7 +77,7 @@ impl SdkT for NetSDK {
             self.config.path.as_deref().unwrap_or("")
         );
         let (mut ws_stream, _) = connect_async(&addr).await.unwrap();
-        info!(target:SATORI, "WebSocket connected with {addr}");
+        info!(target: NET, "WebSocket connected with {addr}");
 
         let mut seq = 0i64;
         ws_stream
@@ -91,12 +98,12 @@ impl SdkT for NetSDK {
                     ws_stream.send(Signal::ping().to_string().into()).await.unwrap();
                 }
                 data = ws_stream.next() => {
-                    trace!(target: SATORI, "receive ws_msg: {:?}" ,data);
+                    trace!(target: NET, "receive ws_msg: {:?}" ,data);
                     match data {
                         Some(Ok(WsMessage::Text(text))) => match serde_json::from_str(&text) {
                             Ok(signal) => match signal {
                                 Signal::Event { body: event, .. } => {
-                                    info!(target: SATORI, "receive event: {:?}", event);
+                                    info!(target: NET, "receive event: {:?}", event);
                                     // TODO: seq
                                     seq = event.id;
                                     s.handle_event(event).await;
@@ -113,7 +120,7 @@ impl SdkT for NetSDK {
                                 }
                                 _ => unreachable!(),
                             },
-                            Err(e) =>  error!(target: SATORI, "deserialize error: {e} in {text}"),
+                            Err(e) =>  error!(target: NET, "deserialize error: {e} in {text}"),
                         }
                         Some(Ok(WsMessage::Ping(d))) => match ws_stream.send(WsMessage::Pong(d)).await {
                             Ok(_) => {}
@@ -131,23 +138,22 @@ impl SdkT for NetSDK {
         }
     }
 
-    async fn call_api<T, R, S, A>(
+    async fn call_api<T, S, A>(
         &self,
         _s: &Arc<Satori<S, A>>,
-        api: &str,
         bot: &BotId,
-        data: T,
-    ) -> Result<R, CallApiError>
+        payload: T,
+    ) -> Result<String, SatoriError>
     where
-        T: Serialize,
-        R: DeserializeOwned,
+        T: IntoRawApiCall + Send,
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
     {
         if !self.bots.read().await.contains(bot) {
-            return Err(CallApiError::InvalidBot);
+            return Err(SatoriError::InvalidBot);
         }
 
+        let payload = payload.into_raw();
         let mut req = self
             .client
             .post(format!(
@@ -155,24 +161,21 @@ impl SdkT for NetSDK {
                 self.config.host,
                 self.config.port,
                 self.config.path.as_deref().unwrap_or(""),
-                api
+                payload.method
             ))
             .header("X-Platform", &bot.platform)
             .header("X-Self-ID", &bot.id)
-            .json(&data);
+            .json(&payload.body);
         if let Some(token) = &self.config.token {
             req = req.bearer_auth(token);
         }
-        trace!(target: SATORI,"Request:{:?}", req);
+        trace!(target: NET,"Request:{:?}", req);
 
         let resp = req.send().await.unwrap();
-        trace!(target: SATORI,"Response:{:?}", resp);
+        trace!(target: NET,"Response:{:?}", resp);
 
         match resp.status() {
-            StatusCode::OK => Ok(serde_json::from_str(
-                &resp.text().await.map_err(anyhow::Error::from)?,
-            )
-            .map_err(anyhow::Error::from)?),
+            StatusCode::OK => Ok(resp.text().await.map_err(anyhow::Error::from)?),
             StatusCode::NOT_FOUND => Err(ApiError::NotFound.into()),
             _ => unimplemented!(),
         }

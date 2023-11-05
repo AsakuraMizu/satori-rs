@@ -16,8 +16,13 @@ use serde_json::Value;
 use tokio::sync::broadcast;
 use tracing::{error, info};
 
-use super::Signal;
-use crate::{ApiError, AppT, BotId, CallApiError, Event, Satori, SdkT, SATORI};
+use super::{Signal, NET};
+use crate::{
+    api::RawApiCall,
+    error::{ApiError, SatoriError},
+    structs::{BotId, Event},
+    AppT, Satori, SdkT,
+};
 
 type WsMessage = axum::extract::ws::Message;
 
@@ -64,7 +69,7 @@ impl NetApp {
     {
         let mut rx = tx.subscribe();
         ws.on_upgrade(|mut socket| async move {
-            info!(target: SATORI, "new WebSocket client acceptted.");
+            info!(target: NET, "new WebSocket client acceptted.");
             loop {
                 tokio::select! {
                     Ok(event) = rx.recv() => {
@@ -72,7 +77,7 @@ impl NetApp {
                             .send(Signal::event(event).to_string().into())
                             .await
                         {
-                            error!(target: SATORI, "Send event error: {e}");
+                            error!(target: NET, "Send event error: {e}");
                             break;
                         }
                     }
@@ -94,13 +99,13 @@ impl NetApp {
                                         }
                                     }
                                     socket
-                                        .send(Signal::ready(s.s.get_logins().await).to_string().into())
+                                        .send(Signal::ready(s.get_logins().await).to_string().into())
                                         .await
                                         .unwrap();
                                 },
                                 Ok(_) => unreachable!(),
                                 Err(e) => {
-                                    error!(target: SATORI, "Receive signal error: {e}")
+                                    error!(target: NET, "Receive signal error: {e}")
                                 }
                             },
                             _ => {}
@@ -121,7 +126,7 @@ impl NetApp {
         State(s): State<Arc<Satori<S, A>>>,
         State(token): State<Option<String>>,
         Json(data): Json<Value>,
-    ) -> Result<String, CallApiError>
+    ) -> Result<String, SatoriError>
     where
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
@@ -134,7 +139,14 @@ impl NetApp {
                 return Err(ApiError::Forbidden.into());
             }
         }
-        s.call_api(&api, &BotId { platform, id }, &data).await
+        s.call_api(
+            &BotId { platform, id },
+            RawApiCall {
+                method: api,
+                body: data,
+            },
+        )
+        .await
     }
 }
 
@@ -194,7 +206,7 @@ impl AppT for NetApp {
                 token: self.config.token.clone(),
             });
 
-        info!(target: SATORI, "Starting server on {}:{}", self.config.host, self.config.port);
+        info!(target: NET, "Starting server on {}:{}", self.config.host, self.config.port);
         let _ = axum::Server::bind(&(self.config.host, self.config.port).into())
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
             .with_graceful_shutdown(s.stop.cancelled())
@@ -263,7 +275,7 @@ impl Header for SelfID {
     }
 }
 
-impl IntoResponse for CallApiError {
+impl IntoResponse for SatoriError {
     fn into_response(self) -> axum::response::Response {
         let status = match &self {
             Self::ApiError(ApiError::BadRequest(_)) => StatusCode::BAD_REQUEST,
@@ -273,7 +285,7 @@ impl IntoResponse for CallApiError {
             Self::ApiError(ApiError::MethodNotAllowed) => StatusCode::METHOD_NOT_ALLOWED,
             Self::ApiError(ApiError::ServerError(code)) => StatusCode::from_u16(*code).unwrap(),
             Self::InvalidBot => StatusCode::NOT_FOUND,
-            Self::UnknownError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         let body = self.to_string();
         (status, body).into_response()

@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
-use serde::{Serialize, de::DeserializeOwned};
-
-use crate::{AppT, BotId, CallApiError, Event, Login, Satori, SdkT};
+use crate::{
+    api::IntoRawApiCall,
+    error::SatoriError,
+    structs::{BotId, Event, Login},
+    AppT, Satori, SdkT,
+};
 
 impl<Inner> AppT for Arc<Inner>
 where
@@ -49,20 +52,18 @@ where
             .unwrap();
     }
 
-    async fn call_api<T, R, S, A>(
+    async fn call_api<T, S, A>(
         &self,
         s: &Arc<Satori<S, A>>,
-        api: &str,
         bot: &BotId,
-        data: T,
-    ) -> Result<R, CallApiError>
+        payload: T,
+    ) -> Result<String, SatoriError>
     where
-        T: Serialize + Send + Sync,
-        R: DeserializeOwned,
+        T: IntoRawApiCall + Send,
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
     {
-        self.as_ref().call_api(s, api, bot, data).await
+        self.as_ref().call_api(s, bot, payload).await
     }
 
     async fn has_bot(&self, bot: &BotId) -> bool {

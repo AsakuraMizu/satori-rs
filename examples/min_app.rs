@@ -1,8 +1,14 @@
-use std::sync::Arc;
+use std::{
+    net::{IpAddr, Ipv4Addr},
+    str::FromStr,
+    sync::Arc,
+};
 
 use satori::{
-    net::sdk::{NetSDK, NetSDKConfig},
-    AppT, ChannelType, Event, Satori, SdkT, SATORI,
+    api::TypedApiCall,
+    impls::net::sdk::{NetSDK, NetSDKConfig},
+    structs::{BotId, ChannelType, Event},
+    AppT, Satori, SdkT, SATORI,
 };
 use serde_json::{json, Value};
 use tracing::{debug, info};
@@ -30,42 +36,38 @@ impl AppT for Echo {
                 return;
             }
         }
-        if let Some(message) = event
-            .message
-            .filter(|m| m.content.as_ref().is_some_and(|c| c.starts_with("echo")))
-        {
-            let bot = satori::BotId {
-                id: event.self_id,
-                platform: event.platform,
-            };
-            if let Some(ch) = event.channel {
-                match ch.ty {
-                    Some(ChannelType::Text) => {
-                        let r: Result<Value, _> = s
-                            .call_api(
-                                "message.create",
-                                &bot,
-                                json!({
-                                    "channel_id": ch.id,
-                                    "content": message.content
-                                }),
-                            )
-                            .await;
-                        debug!("api response:{:?}", r);
+        if let Some(message) = event.message {
+            if let Some(content) = &message.content {
+                info!(
+                    "try to parse message: {:?}",
+                    satori::message::from_str(&content)
+                );
+                if content.starts_with("echo") {
+                    let bot = BotId {
+                        id: event.self_id,
+                        platform: event.platform,
+                    };
+                    if let Some(ch) = event.channel {
+                        match ch.ty {
+                            Some(ChannelType::Text) => {
+                                let r = s.create_message(&bot, &ch.id, &content).await;
+                                debug!("api response:{:?}", r);
+                            }
+                            // ChannelType::Direct => {
+                            //     let _ch = s
+                            //         .call_api::<Channel>(
+                            //             "user.channel.create",
+                            //             &bot,
+                            //             json!({
+                            //                 "user_id": ch.id,
+                            //             }),
+                            //         )
+                            //         .await
+                            //         .unwrap();
+                            // }
+                            _ => {}
+                        }
                     }
-                    // ChannelType::Direct => {
-                    //     let _ch = s
-                    //         .call_api::<Channel>(
-                    //             "user.channel.create",
-                    //             &bot,
-                    //             json!({
-                    //                 "user_id": ch.id,
-                    //             }),
-                    //         )
-                    //         .await
-                    //         .unwrap();
-                    // }
-                    _ => {}
                 }
             }
         }
@@ -85,7 +87,6 @@ async fn main() {
         .init();
     let app = Satori::new(
         NetSDK::new(NetSDKConfig {
-            port: 5141,
             ..Default::default()
         }),
         Echo {},

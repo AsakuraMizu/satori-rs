@@ -4,7 +4,7 @@ use satori::{
     net::app::{NetAPPConfig, NetApp},
     ApiError, AppT, BotId, CallApiError, Login, Satori, SdkT, SATORI,
 };
-use serde::Serialize;
+use serde::{Serialize, de::DeserializeOwned};
 use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
 
@@ -18,15 +18,16 @@ impl SdkT for Echo {
     {
     }
 
-    async fn call_api<T, S, A>(
+    async fn call_api<T, R, S, A>(
         &self,
         s: &Arc<Satori<S, A>>,
         api: &str,
         bot: &BotId,
         data: T,
-    ) -> Result<String, CallApiError>
+    ) -> Result<R, CallApiError>
     where
         T: Serialize + Send,
+        R: DeserializeOwned,
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
     {

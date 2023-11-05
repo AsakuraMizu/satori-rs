@@ -40,8 +40,8 @@ pub enum CallApiError {
     ApiError(#[from] ApiError),
     #[error("invalid bot")]
     InvalidBot,
-    #[error("json error: {0}")]
-    JsonError(#[from] serde_json::Error),
+    #[error("unknown error: {0}")]
+    UnknownError(#[from] anyhow::Error),
 }
 
 pub trait SdkT {
@@ -50,15 +50,16 @@ pub trait SdkT {
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static;
 
-    fn call_api<T, S, A>(
+    fn call_api<T, R, S, A>(
         &self,
         s: &Arc<Satori<S, A>>,
         api: &str,
         bot: &BotId,
         data: T,
-    ) -> impl Future<Output = Result<String, CallApiError>> + Send
+    ) -> impl Future<Output = Result<R, CallApiError>> + Send
     where
         T: Serialize + Send + Sync,
+        R: DeserializeOwned,
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static;
 
@@ -114,10 +115,11 @@ where
         T: Serialize + Send + Sync,
         R: DeserializeOwned,
     {
-        self.s.call_api(self, api, bot, data).await.and_then(|s| {
-            tracing::trace!(target:SATORI, "recive api resp:{s}");
-            Ok(serde_json::from_str(&s)?)
-        })
+        self.s.call_api(self, api, bot, data).await
+        // self.s.call_api(self, api, bot, data).await.and_then(|s| {
+        //     tracing::trace!(target:SATORI, "recive api resp:{s}");
+        //     Ok(serde_json::from_str(&s)?)
+        // })
     }
 
     pub async fn handle_event(self: &Arc<Self>, event: Event) {
@@ -125,11 +127,9 @@ where
     }
 }
 
-#[cfg(feature = "net")]
-pub mod net;
+mod impls;
+pub use impls::*;
 
-pub mod arc;
-pub mod tuple;
 
-mod message;
-pub use message::*;
+#[cfg(feature = "message")]
+pub mod message;

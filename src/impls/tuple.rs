@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use serde::Serialize;
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{AppT, BotId, CallApiError, Event, Login, Satori, SdkT};
 
@@ -52,15 +52,16 @@ macro_rules! impl_sdkt_for_tuples {
                 tokio::join!($(self.$i.start(s)),*);
             }
 
-            async fn call_api<T, S, A>(
+            async fn call_api<T, R, S, A>(
                 &self,
                 s: &Arc<Satori<S, A>>,
                 api: &str,
                 bot: &BotId,
                 data: T
-            ) -> Result<String, CallApiError>
+            ) -> Result<R, CallApiError>
             where
                 T: Serialize + Send + Sync,
+                R: DeserializeOwned,
                 S: SdkT + Send + Sync + 'static,
                 A: AppT + Send + Sync + 'static,
             {

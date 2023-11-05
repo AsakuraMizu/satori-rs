@@ -273,7 +273,7 @@ impl IntoResponse for CallApiError {
             Self::ApiError(ApiError::MethodNotAllowed) => StatusCode::METHOD_NOT_ALLOWED,
             Self::ApiError(ApiError::ServerError(code)) => StatusCode::from_u16(*code).unwrap(),
             Self::InvalidBot => StatusCode::NOT_FOUND,
-            Self::JsonError(_) => StatusCode::BAD_REQUEST,
+            Self::UnknownError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         let body = self.to_string();
         (status, body).into_response()

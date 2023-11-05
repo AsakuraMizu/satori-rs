@@ -7,7 +7,7 @@ use std::{
 
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tokio::{sync::RwLock, time::Instant};
 use tokio_tungstenite::connect_async;
 use tracing::{error, info, trace};
@@ -131,15 +131,16 @@ impl SdkT for NetSDK {
         }
     }
 
-    async fn call_api<T, S, A>(
+    async fn call_api<T, R, S, A>(
         &self,
         _s: &Arc<Satori<S, A>>,
         api: &str,
         bot: &BotId,
         data: T,
-    ) -> Result<String, CallApiError>
+    ) -> Result<R, CallApiError>
     where
         T: Serialize,
+        R: DeserializeOwned,
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
     {
@@ -168,7 +169,10 @@ impl SdkT for NetSDK {
         trace!(target: SATORI,"Response:{:?}", resp);
 
         match resp.status() {
-            StatusCode::OK => Ok(resp.text().await.unwrap()),
+            StatusCode::OK => Ok(serde_json::from_str(
+                &resp.text().await.map_err(anyhow::Error::from)?,
+            )
+            .map_err(anyhow::Error::from)?),
             StatusCode::NOT_FOUND => Err(ApiError::NotFound.into()),
             _ => unimplemented!(),
         }

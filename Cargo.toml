@@ -6,24 +6,23 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["message", "net-sdk", "onebot11"]
+default = ["http", "message", "net-sdk"]
+http = ["dep:headers", "dep:http"]
+reqwest = ["http", "dep:reqwest", "dep:url"]
 message = ["dep:quick-xml"]
 net-app = [
     "dep:axum",
     "dep:futures-util",
-    "dep:headers",
-    "dep:http",
+    "http",
 ]
 net-sdk = [
     "dep:futures-util",
-    "dep:http",
-    "dep:reqwest",
     "dep:tokio-tungstenite",
+    "reqwest",
 ]
 onebot11 = [
-    "dep:http",
-    "dep:reqwest",
-    "dep:tokio-tungstenite"
+    "dep:tokio-tungstenite",
+    "reqwest",
 ]
 
 [dependencies]
@@ -48,6 +47,7 @@ tokio = { version = "1.32.0", features = [
 tokio-tungstenite = { version = "0.20.1", optional = true }
 tokio-util = "0.7.9"
 tracing = "0.1.37"
+url = { version = "2.4.1", features = ["serde"], optional = true }
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.17", features = ["time", "fmt"] }
@@ -55,3 +55,7 @@ tracing-subscriber = { version = "0.3.17", features = ["time", "fmt"] }
 [[example]]
 name = "min_sdk"
 required-features = ["net-app"]
+
+[[example]]
+name = "onebot_app"
+required-features = ["onebot11"]

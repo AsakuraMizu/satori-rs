@@ -7,6 +7,7 @@ use satori::{
     structs::{BotId, Login},
     AppT, Satori, SdkT, SATORI,
 };
+use serde_json::Value;
 use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
 
@@ -25,7 +26,7 @@ impl SdkT for Echo {
         s: &Arc<Satori<S, A>>,
         bot: &BotId,
         payload: T,
-    ) -> Result<String, SatoriError>
+    ) -> Result<Value, SatoriError>
     where
         T: IntoRawApiCall,
         S: SdkT + Send + Sync + 'static,

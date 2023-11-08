@@ -1,5 +1,6 @@
 use std::{future::Future, sync::Arc};
 
+use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
@@ -25,7 +26,7 @@ pub trait SdkT {
         s: &Arc<Satori<S, A>>,
         bot: &BotId,
         payload: T,
-    ) -> impl Future<Output = Result<String, SatoriError>> + Send
+    ) -> impl Future<Output = Result<Value, SatoriError>> + Send
     where
         T: IntoRawApiCall + Send,
         S: SdkT + Send + Sync + 'static,
@@ -77,7 +78,7 @@ where
         self: &Arc<Self>,
         bot: &BotId,
         payload: T,
-    ) -> Result<String, SatoriError>
+    ) -> Result<Value, SatoriError>
     where
         T: IntoRawApiCall + Send,
     {

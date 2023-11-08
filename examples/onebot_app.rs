@@ -1,8 +1,9 @@
 use satori::{
-    impls::net::sdk::{NetSDK, NetSDKConfig},
+    impls::onebot11::{Onebot11SDK, Onebot11SDKConfig},
     Satori, SATORI,
 };
 use tracing_subscriber::filter::LevelFilter;
+use url::Host;
 
 mod common;
 
@@ -18,8 +19,12 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer().with_filter(filter))
         .init();
     let app = Satori::new(
-        NetSDK::new(NetSDKConfig {
-            ..Default::default()
+        Onebot11SDK::new(Onebot11SDKConfig {
+            host: Host::parse(todo!()).unwrap(),
+            ws_port: todo!(),
+            http_port: todo!(),
+            access_token: None,
+            self_id: todo!(),
         }),
         common::echo_app::EchoApp {},
     );

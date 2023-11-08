@@ -147,6 +147,7 @@ impl NetApp {
             },
         )
         .await
+        .map(|v| v.to_string())
     }
 }
 

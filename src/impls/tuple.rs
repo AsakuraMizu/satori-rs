@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use serde_json::Value;
+
 use crate::{
     api::IntoRawApiCall,
     error::SatoriError,
@@ -60,7 +62,7 @@ macro_rules! impl_sdkt_for_tuples {
                 s: &Arc<Satori<S, A>>,
                 bot: &BotId,
                 payload: T,
-            ) -> Result<String, SatoriError>
+            ) -> Result<Value, SatoriError>
             where
                 T: IntoRawApiCall + Send,
                 S: SdkT + Send + Sync + 'static,

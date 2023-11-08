@@ -1,21 +1,18 @@
-use std::{
-    collections::HashSet,
-    net::{IpAddr, Ipv4Addr},
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashSet, net::Ipv4Addr, sync::Arc, time::Duration};
 
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio::{sync::RwLock, time::Instant};
 use tokio_tungstenite::connect_async;
 use tracing::{error, info, trace};
+use url::Host;
 
 use super::{Logins, Signal};
 use crate::{
     api::IntoRawApiCall,
-    error::{ApiError, SatoriError},
+    error::{ApiError, MapSatoriError, SatoriError},
     impls::net::NET,
     structs::{BotId, Login, Status},
     AppT, Satori, SdkT,
@@ -25,7 +22,7 @@ type WsMessage = tokio_tungstenite::tungstenite::Message;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NetSDKConfig {
-    pub host: std::net::IpAddr,
+    pub host: Host,
     pub port: u16,
     pub path: Option<String>,
     pub token: Option<String>,
@@ -34,7 +31,7 @@ pub struct NetSDKConfig {
 impl Default for NetSDKConfig {
     fn default() -> Self {
         Self {
-            host: IpAddr::V4(Ipv4Addr::LOCALHOST),
+            host: Host::Ipv4(Ipv4Addr::LOCALHOST),
             port: 5140,
             path: None,
             token: None,
@@ -143,7 +140,7 @@ impl SdkT for NetSDK {
         _s: &Arc<Satori<S, A>>,
         bot: &BotId,
         payload: T,
-    ) -> Result<String, SatoriError>
+    ) -> Result<Value, SatoriError>
     where
         T: IntoRawApiCall + Send,
         S: SdkT + Send + Sync + 'static,
@@ -169,15 +166,14 @@ impl SdkT for NetSDK {
         if let Some(token) = &self.config.token {
             req = req.bearer_auth(token);
         }
-        trace!(target: NET,"Request:{:?}", req);
+        trace!(target: NET, "Request:{:?}", req);
 
         let resp = req.send().await.unwrap();
-        trace!(target: NET,"Response:{:?}", resp);
+        trace!(target: NET, "Response:{:?}", resp);
 
         match resp.status() {
-            StatusCode::OK => Ok(resp.text().await.map_err(anyhow::Error::from)?),
-            StatusCode::NOT_FOUND => Err(ApiError::NotFound.into()),
-            _ => unimplemented!(),
+            StatusCode::OK => Ok(resp.json().await.map_internal_error()?),
+            _ => Err(SatoriError::ApiError(ApiError::from_respponse(resp).await?)),
         }
     }
 

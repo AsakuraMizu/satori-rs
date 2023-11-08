@@ -16,6 +16,26 @@ pub enum ApiError {
     ServerError(u16),
 }
 
+#[cfg(feature = "reqwest")]
+impl ApiError {
+    pub async fn from_respponse(resp: reqwest::Response) -> Result<Self, SatoriError> {
+        match resp.status() {
+            reqwest::StatusCode::BAD_REQUEST => Ok(Self::BadRequest(anyhow::anyhow!(resp
+                .text()
+                .await
+                .map_internal_error()?))),
+            reqwest::StatusCode::UNAUTHORIZED => Ok(Self::Unauthorized),
+            reqwest::StatusCode::FORBIDDEN => Ok(Self::Forbidden),
+            reqwest::StatusCode::NOT_FOUND => Ok(Self::NotFound),
+            reqwest::StatusCode::METHOD_NOT_ALLOWED => Ok(Self::MethodNotAllowed),
+            s if s.is_server_error() => Ok(Self::ServerError(s.as_u16())),
+            _ => Err(SatoriError::InternalError(anyhow::anyhow!(
+                "unexpected status code"
+            ))),
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum SatoriError {
     #[error(transparent)]
@@ -24,4 +44,17 @@ pub enum SatoriError {
     InvalidBot,
     #[error("internal error: {0}")]
     InternalError(#[from] anyhow::Error),
+}
+
+pub trait MapSatoriError<T> {
+    fn map_internal_error(self) -> Result<T, SatoriError>;
+}
+
+impl<T, E> MapSatoriError<T> for Result<T, E>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    fn map_internal_error(self) -> Result<T, SatoriError> {
+        self.map_err(|e| SatoriError::InternalError(anyhow::Error::new(e)))
+    }
 }

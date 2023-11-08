@@ -3,7 +3,11 @@ use std::sync::Arc;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{error::SatoriError, structs::*, AppT, Satori, SdkT};
+use crate::{
+    error::{MapSatoriError, SatoriError},
+    structs::*,
+    AppT, Satori, SdkT,
+};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -14,13 +18,10 @@ pub struct RawApiCall {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
-#[serde(tag = "api", content = "body")]
-pub enum TypedApiCall<'a> {
+#[serde(tag = "method", content = "body")]
+pub enum TypedApiCall {
     #[serde(rename = "message.create")]
-    MessageCreate {
-        channel_id: &'a str,
-        content: &'a str,
-    },
+    MessageCreate { channel_id: String, content: String },
 }
 
 pub trait IntoRawApiCall {
@@ -34,18 +35,18 @@ impl IntoRawApiCall for RawApiCall {
 }
 
 // TODO: rewrite this part
-impl<'a> IntoRawApiCall for TypedApiCall<'a> {
+impl IntoRawApiCall for TypedApiCall {
     fn into_raw(self) -> RawApiCall {
         // this never fails
         serde_json::from_value(serde_json::to_value(self).unwrap()).unwrap()
     }
 }
 
-impl<'a> TryFrom<RawApiCall> for TypedApiCall<'a> {
+impl TryFrom<RawApiCall> for TypedApiCall {
     type Error = serde_json::Error;
 
     fn try_from(value: RawApiCall) -> Result<Self, Self::Error> {
-        Self::deserialize(serde_json::to_value(value).unwrap())
+        serde_json::from_value(serde_json::to_value(value).unwrap())
     }
 }
 
@@ -57,21 +58,20 @@ where
     async fn _call_api<R>(
         self: &Arc<Self>,
         bot: &BotId,
-        payload: TypedApiCall<'_>,
+        payload: TypedApiCall,
     ) -> Result<R, SatoriError>
     where
         R: DeserializeOwned,
     {
-        Ok(serde_json::from_str(&self.call_api(bot, payload).await?)
-            .map_err(anyhow::Error::from)?)
+        Ok(serde_json::from_value(self.call_api(bot, payload).await?).map_internal_error()?)
     }
 
     pub async fn create_message(
         self: &Arc<Self>,
         bot: &BotId,
-        channel_id: &str,
-        content: &str,
-    ) -> Result<Vec<Message>, SatoriError> {
+        channel_id: String,
+        content: String,
+    ) -> Result<Value, SatoriError> {
         self._call_api(
             bot,
             TypedApiCall::MessageCreate {
@@ -93,8 +93,8 @@ mod tests {
     fn test_convert() {
         assert_eq!(
             TypedApiCall::MessageCreate {
-                channel_id: "1",
-                content: "1",
+                channel_id: "1".to_string(),
+                content: "1".to_string(),
             }
             .into_raw(),
             RawApiCall {
@@ -110,8 +110,8 @@ mod tests {
             })
             .unwrap(),
             TypedApiCall::MessageCreate {
-                channel_id: "2",
-                content: "2",
+                channel_id: "2".to_string(),
+                content: "2".to_string(),
             }
         );
 

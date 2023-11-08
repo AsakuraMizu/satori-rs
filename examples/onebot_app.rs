@@ -26,5 +26,10 @@ async fn main() {
         }),
         common::echo_app::EchoApp {},
     );
-    app.start().await;
+    tokio::select! {
+        _ = app.start() => {}
+        _ = tokio::signal::ctrl_c() => {
+            app.shutdown();
+        }
+    };
 }

@@ -61,5 +61,10 @@ async fn main() {
             ..Default::default()
         }),
     );
-    sdk.start().await;
+    tokio::select! {
+        _ = sdk.start() => {}
+        _ = tokio::signal::ctrl_c() => {
+            sdk.shutdown();
+        }
+    };
 }

@@ -77,7 +77,7 @@ impl NetApp {
                             .send(Signal::event(event).to_string().into())
                             .await
                         {
-                            error!(target: NET, "Send event error: {e}");
+                            error!(target: NET, "Send event error: {:?}", e);
                             break;
                         }
                     }
@@ -105,7 +105,7 @@ impl NetApp {
                                 },
                                 Ok(_) => unreachable!(),
                                 Err(e) => {
-                                    error!(target: NET, "Receive signal error: {e}")
+                                    error!(target: NET, "Receive signal error: {:?}", e)
                                 }
                             },
                             _ => {}

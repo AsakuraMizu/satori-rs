@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::structs::{Event, Login};
 
-static NET: &str = "Net";
+pub const NET: &str = "Net";
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]

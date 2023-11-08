@@ -2,18 +2,13 @@ use std::{future::Future, sync::Arc};
 
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
+use tracing::{debug, info};
 
 use crate::{
-    api::IntoRawApiCall,
+    api::{IntoRawApiCall, RawApiCall},
     error::SatoriError,
     structs::{BotId, Event, Login},
 };
-
-pub struct Satori<S, A> {
-    s: S,
-    a: A,
-    pub stop: CancellationToken,
-}
 
 pub trait SdkT {
     fn start<S, A>(&self, s: &Arc<Satori<S, A>>) -> impl Future<Output = ()> + Send
@@ -21,14 +16,13 @@ pub trait SdkT {
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static;
 
-    fn call_api<T, S, A>(
+    fn call_api<S, A>(
         &self,
         s: &Arc<Satori<S, A>>,
         bot: &BotId,
-        payload: T,
+        payload: RawApiCall,
     ) -> impl Future<Output = Result<Value, SatoriError>> + Send
     where
-        T: IntoRawApiCall + Send,
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static;
 
@@ -53,6 +47,14 @@ pub trait AppT {
         A: AppT + Send + Sync + 'static;
 }
 
+const SATORI: &str = "Satori";
+
+pub struct Satori<S, A> {
+    s: S,
+    a: A,
+    pub stop: CancellationToken,
+}
+
 impl<S, A> Satori<S, A>
 where
     S: SdkT + Send + Sync + 'static,
@@ -67,10 +69,12 @@ where
     }
 
     pub async fn start(self: &Arc<Self>) {
+        info!(target: SATORI, "Starting...");
         let _ = tokio::join!(self.s.start(self), self.a.start(self));
     }
 
     pub fn shutdown(self: &Arc<Self>) {
+        info!(target: SATORI, "Stopping...");
         self.stop.cancel();
     }
 
@@ -82,10 +86,13 @@ where
     where
         T: IntoRawApiCall + Send,
     {
+        let payload = payload.into_raw();
+        debug!(target: SATORI, ?bot, ?payload, "call api");
         self.s.call_api(self, bot, payload).await
     }
 
     pub async fn handle_event(self: &Arc<Self>, event: Event) {
+        debug!(target: SATORI, ?event, "handle event");
         self.a.handle_event(self, event).await
     }
 

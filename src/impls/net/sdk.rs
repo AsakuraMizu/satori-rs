@@ -11,7 +11,7 @@ use url::Host;
 
 use super::{Logins, Signal};
 use crate::{
-    api::IntoRawApiCall,
+    api::RawApiCall,
     error::{ApiError, MapSatoriError, SatoriError},
     impls::net::NET,
     structs::{BotId, Login, Status},
@@ -135,14 +135,13 @@ impl SdkT for NetSDK {
         }
     }
 
-    async fn call_api<T, S, A>(
+    async fn call_api<S, A>(
         &self,
         _s: &Arc<Satori<S, A>>,
         bot: &BotId,
-        payload: T,
+        payload: RawApiCall,
     ) -> Result<Value, SatoriError>
     where
-        T: IntoRawApiCall + Send,
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
     {
@@ -150,7 +149,6 @@ impl SdkT for NetSDK {
             return Err(SatoriError::InvalidBot);
         }
 
-        let payload = payload.into_raw();
         let mut req = self
             .client
             .post(format!(
@@ -166,10 +164,10 @@ impl SdkT for NetSDK {
         if let Some(token) = &self.config.token {
             req = req.bearer_auth(token);
         }
-        trace!(target: NET, "Request:{:?}", req);
+        trace!(target: NET, ?req);
 
         let resp = req.send().await.unwrap();
-        trace!(target: NET, "Response:{:?}", resp);
+        trace!(target: NET, ?resp);
 
         match resp.status() {
             StatusCode::OK => Ok(resp.json().await.map_internal_error()?),

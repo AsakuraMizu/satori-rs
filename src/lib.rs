@@ -1,5 +1,3 @@
-pub const SATORI: &str = "Satori";
-
 mod _core;
 pub use _core::*;
 

@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
 use satori::{
-    api::IntoRawApiCall,
+    api::RawApiCall,
     error::{ApiError, SatoriError},
     impls::net::app::{NetAPPConfig, NetApp},
     structs::{BotId, Login},
-    AppT, Satori, SdkT, SATORI,
+    AppT, Satori, SdkT,
 };
 use serde_json::Value;
-use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
 
 pub struct Echo {}
@@ -21,19 +20,16 @@ impl SdkT for Echo {
     {
     }
 
-    async fn call_api<T, S, A>(
+    async fn call_api<S, A>(
         &self,
         s: &Arc<Satori<S, A>>,
-        bot: &BotId,
-        payload: T,
+        _bot: &BotId,
+        payload: RawApiCall,
     ) -> Result<Value, SatoriError>
     where
-        T: IntoRawApiCall,
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
     {
-        let payload = payload.into_raw();
-        info!(?bot, "{:?}", payload);
         if payload.method == "stop" {
             s.shutdown();
         }
@@ -51,9 +47,7 @@ impl SdkT for Echo {
 
 #[tokio::main]
 async fn main() {
-    let filter = tracing_subscriber::filter::Targets::new()
-        .with_default(LevelFilter::INFO)
-        .with_targets([(SATORI, LevelFilter::TRACE)]);
+    let filter = tracing_subscriber::filter::Targets::new().with_default(LevelFilter::INFO);
     use tracing_subscriber::{
         prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, Layer,
     };

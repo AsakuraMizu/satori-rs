@@ -5,11 +5,11 @@ use http::{header::AUTHORIZATION, HeaderMap, HeaderValue, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio_tungstenite::{connect_async, tungstenite::client::IntoClientRequest};
-use tracing::{error, info, trace};
+use tracing::{debug, error, info, trace};
 use url::Host;
 
 use crate::{
-    api::{IntoRawApiCall, TypedApiCall},
+    api::{RawApiCall, TypedApiCall},
     error::{ApiError, MapSatoriError, SatoriError},
     structs::{BotId, Channel, ChannelType, Event, Login, Message},
     AppT, Satori, SdkT,
@@ -19,7 +19,7 @@ pub mod events;
 
 type WsMessage = tokio_tungstenite::tungstenite::Message;
 
-const ONEBOT: &str = "OneBot";
+pub const ONEBOT: &str = "OneBot";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Onebot11SDKConfig {
@@ -77,7 +77,7 @@ impl SdkT for Onebot11SDK {
             );
         }
         let (mut ws_stream, _) = connect_async(req).await.unwrap();
-        info!(target:ONEBOT, "WebSocket connected with {addr}");
+        info!(target: ONEBOT, "WebSocket connected with {addr}");
 
         loop {
             tokio::select! {
@@ -85,7 +85,7 @@ impl SdkT for Onebot11SDK {
                     trace!(target: ONEBOT, "receive ws_msg: {:?}" ,data);
                     match data {
                         Some(Ok(WsMessage::Text(text))) => {
-                            trace!(target: ONEBOT, "receive event: {text}");
+                            debug!(target: ONEBOT, "receive event: {text}");
                             match serde_json::from_str(&text) {
                                 Ok(ev) => match ev {
                                     events::Event::Message(msg) => {
@@ -111,7 +111,7 @@ impl SdkT for Onebot11SDK {
                                     }
                                     events::Event::Unknown => {}
                                 }
-                                Err(e) => error!(target: ONEBOT, "failed to parse event: {e}")
+                                Err(e) => error!(target: ONEBOT, "failed to parse event: {:?}", e)
                             }
                         }
                         Some(Ok(WsMessage::Ping(d))) => match ws_stream.send(WsMessage::Pong(d)).await {
@@ -130,21 +130,20 @@ impl SdkT for Onebot11SDK {
         }
     }
 
-    async fn call_api<T, S, A>(
+    async fn call_api<S, A>(
         &self,
         _s: &Arc<Satori<S, A>>,
         bot: &BotId,
-        payload: T,
+        payload: RawApiCall,
     ) -> Result<Value, SatoriError>
     where
-        T: IntoRawApiCall + Send,
         S: SdkT + Send + Sync + 'static,
         A: AppT + Send + Sync + 'static,
     {
         if !self.has_bot(bot).await {
             return Err(SatoriError::InvalidBot);
         }
-        match TypedApiCall::try_from(payload.into_raw()).map_internal_error()? {
+        match TypedApiCall::try_from(payload).map_internal_error()? {
             TypedApiCall::MessageCreate {
                 channel_id,
                 content,

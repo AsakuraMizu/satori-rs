@@ -3,7 +3,7 @@ use std::sync::Arc;
 use serde_json::Value;
 
 use crate::{
-    api::IntoRawApiCall,
+    api::RawApiCall,
     error::SatoriError,
     structs::{BotId, Event, Login},
     AppT, Satori, SdkT,
@@ -57,14 +57,13 @@ macro_rules! impl_sdkt_for_tuples {
                 tokio::join!($(self.$i.start(s)),*);
             }
 
-            async fn call_api<T, S, A>(
+            async fn call_api<S, A>(
                 &self,
                 s: &Arc<Satori<S, A>>,
                 bot: &BotId,
-                payload: T,
+                payload: RawApiCall,
             ) -> Result<Value, SatoriError>
             where
-                T: IntoRawApiCall + Send,
                 S: SdkT + Send + Sync + 'static,
                 A: AppT + Send + Sync + 'static,
             {

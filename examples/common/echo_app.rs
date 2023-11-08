@@ -4,7 +4,7 @@ use satori::{
     structs::{BotId, ChannelType, Event},
     AppT, Satori, SdkT,
 };
-use tracing::{debug, info};
+use tracing::debug;
 
 pub struct EchoApp {}
 
@@ -27,7 +27,6 @@ impl AppT for EchoApp {
                 return;
             }
         }
-        info!(?event, "handle_evnet");
         if let Some(message) = event.message {
             if let Some(content) = &message.content {
                 if content.starts_with("echo") {

@@ -21,7 +21,7 @@ use crate::{
     api::RawApiCall,
     error::{ApiError, SatoriError},
     structs::{BotId, Event},
-    AppT, Satori, SdkT,
+    SatoriApp, Satori,
 };
 
 type WsMessage = axum::extract::ws::Message;
@@ -57,15 +57,14 @@ impl NetApp {
         Self { config, tx }
     }
 
-    async fn ws_handler<S, A>(
+    async fn ws_handler<S>(
         ws: WebSocketUpgrade,
-        State(s): State<Arc<Satori<S, A>>>,
+        State(s): State<Arc<S>>,
         State(token): State<Option<String>>,
         State(tx): State<broadcast::Sender<Event>>,
     ) -> impl IntoResponse
     where
-        S: SdkT + Send + Sync + 'static,
-        A: AppT + Send + Sync + 'static,
+        S: Satori + Send + Sync + 'static,
     {
         let mut rx = tx.subscribe();
         ws.on_upgrade(|mut socket| async move {
@@ -111,25 +110,24 @@ impl NetApp {
                             _ => {}
                         }
                     }
-                    _ = s.stop.cancelled() => break
+                    _ = s.stopped() => break
                 }
             }
             let _ = socket.close().await;
         })
     }
 
-    async fn api_handler<S, A>(
+    async fn api_handler<S>(
         Path(api): Path<String>,
         TypedHeader(Platform(platform)): TypedHeader<Platform>,
         TypedHeader(SelfID(id)): TypedHeader<SelfID>,
         bearer: Option<TypedHeader<Authorization<Bearer>>>,
-        State(s): State<Arc<Satori<S, A>>>,
+        State(s): State<Arc<S>>,
         State(token): State<Option<String>>,
         Json(data): Json<Value>,
     ) -> Result<String, SatoriError>
     where
-        S: SdkT + Send + Sync + 'static,
-        A: AppT + Send + Sync + 'static,
+        S: Satori + Send + Sync + 'static,
     {
         if let Some(token) = token {
             let Some(TypedHeader(Authorization(bearer))) = bearer else {
@@ -151,13 +149,13 @@ impl NetApp {
     }
 }
 
-struct AppState<S, A> {
-    s: Arc<Satori<S, A>>,
+struct AppState<S> {
+    s: Arc<S>,
     tx: broadcast::Sender<Event>,
     token: Option<String>,
 }
 
-impl<S, A> Clone for AppState<S, A> {
+impl<S> Clone for AppState<S> {
     fn clone(&self) -> Self {
         Self {
             s: self.s.clone(),
@@ -167,29 +165,28 @@ impl<S, A> Clone for AppState<S, A> {
     }
 }
 
-impl<S, A> FromRef<AppState<S, A>> for Arc<Satori<S, A>> {
-    fn from_ref(input: &AppState<S, A>) -> Self {
+impl<S> FromRef<AppState<S>> for Arc<S> {
+    fn from_ref(input: &AppState<S>) -> Self {
         input.s.clone()
     }
 }
 
-impl<S, A> FromRef<AppState<S, A>> for broadcast::Sender<Event> {
-    fn from_ref(input: &AppState<S, A>) -> Self {
+impl<S> FromRef<AppState<S>> for broadcast::Sender<Event> {
+    fn from_ref(input: &AppState<S>) -> Self {
         input.tx.clone()
     }
 }
 
-impl<S, A> FromRef<AppState<S, A>> for Option<String> {
-    fn from_ref(input: &AppState<S, A>) -> Self {
+impl<S> FromRef<AppState<S>> for Option<String> {
+    fn from_ref(input: &AppState<S>) -> Self {
         input.token.clone()
     }
 }
 
-impl AppT for NetApp {
-    async fn start<S, A>(&self, s: &Arc<Satori<S, A>>)
+impl SatoriApp for NetApp {
+    async fn start<S>(&self, s: &Arc<S>)
     where
-        S: SdkT + Send + Sync + 'static,
-        A: AppT + Send + Sync + 'static,
+        S: Satori + Send + Sync + 'static,
     {
         let path = self.config.path.as_deref().unwrap_or("");
         let app = axum::Router::new()
@@ -210,14 +207,13 @@ impl AppT for NetApp {
         info!(target: NET, "Starting server on {}:{}", self.config.host, self.config.port);
         let _ = axum::Server::bind(&(self.config.host, self.config.port).into())
             .serve(app.into_make_service_with_connect_info::<SocketAddr>())
-            .with_graceful_shutdown(s.stop.cancelled())
+            .with_graceful_shutdown(s.stopped())
             .await;
     }
 
-    async fn handle_event<S, A>(&self, _s: &Arc<Satori<S, A>>, event: Event)
+    async fn handle_event<S>(&self, _s: &Arc<S>, event: Event)
     where
-        S: SdkT + Send + Sync + 'static,
-        A: AppT + Send + Sync + 'static,
+        S: Satori + Send + Sync + 'static,
     {
         self.tx.send(event).ok();
     }

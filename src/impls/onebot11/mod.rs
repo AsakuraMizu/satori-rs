@@ -12,7 +12,7 @@ use crate::{
     api::{RawApiCall, TypedApiCall},
     error::{ApiError, MapSatoriError, SatoriError},
     structs::{BotId, Channel, ChannelType, Event, Login, Message},
-    AppT, Satori, SdkT,
+    Satori, SatoriSdk,
 };
 
 pub mod events;
@@ -62,11 +62,10 @@ impl Onebot11SDK {
     }
 }
 
-impl SdkT for Onebot11SDK {
-    async fn start<S, A>(&self, s: &Arc<Satori<S, A>>) -> ()
+impl SatoriSdk for Onebot11SDK {
+    async fn start<S>(&self, s: &Arc<S>) -> ()
     where
-        S: SdkT + Send + Sync + 'static,
-        A: AppT + Send + Sync + 'static,
+        S: Satori + Send + Sync + 'static,
     {
         let addr = format!("ws://{}:{}/", self.config.host, self.config.ws_port);
         let mut req = addr.as_str().into_client_request().unwrap();
@@ -122,7 +121,7 @@ impl SdkT for Onebot11SDK {
                         _ => break,
                     }
                 }
-                _ = s.stop.cancelled() => {
+                _ = s.stopped() => {
                     ws_stream.send(WsMessage::Close(None)).await.ok();
                     break;
                 }
@@ -130,15 +129,14 @@ impl SdkT for Onebot11SDK {
         }
     }
 
-    async fn call_api<S, A>(
+    async fn call_api<S>(
         &self,
-        _s: &Arc<Satori<S, A>>,
+        _s: &Arc<S>,
         bot: &BotId,
         payload: RawApiCall,
     ) -> Result<Value, SatoriError>
     where
-        S: SdkT + Send + Sync + 'static,
-        A: AppT + Send + Sync + 'static,
+        S: Satori + Send + Sync + 'static,
     {
         if !self.has_bot(bot).await {
             return Err(SatoriError::InvalidBot);

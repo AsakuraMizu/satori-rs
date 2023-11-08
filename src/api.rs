@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{future::Future, sync::Arc};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::{
     error::{MapSatoriError, SatoriError},
     structs::*,
-    AppT, Satori, SdkT,
+    Satori,
 };
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -50,12 +50,28 @@ impl TryFrom<RawApiCall> for TypedApiCall {
     }
 }
 
-impl<S, A> Satori<S, A>
+pub trait SatoriApi: Satori + sealed::Sealed {
+    fn call_api_typed<R>(
+        self: &Arc<Self>,
+        bot: &BotId,
+        payload: TypedApiCall,
+    ) -> impl Future<Output = Result<R, SatoriError>> + Send
+    where
+        R: DeserializeOwned;
+
+    fn create_message(
+        self: &Arc<Self>,
+        bot: &BotId,
+        channel_id: String,
+        content: String,
+    ) -> impl Future<Output = Result<Value, SatoriError>> + Send;
+}
+
+impl<S> SatoriApi for S
 where
-    S: SdkT + Send + Sync + 'static,
-    A: AppT + Send + Sync + 'static,
+    S: Satori + Send + Sync,
 {
-    async fn _call_api<R>(
+    async fn call_api_typed<R>(
         self: &Arc<Self>,
         bot: &BotId,
         payload: TypedApiCall,
@@ -66,13 +82,13 @@ where
         Ok(serde_json::from_value(self.call_api(bot, payload).await?).map_internal_error()?)
     }
 
-    pub async fn create_message(
+    async fn create_message(
         self: &Arc<Self>,
         bot: &BotId,
         channel_id: String,
         content: String,
     ) -> Result<Value, SatoriError> {
-        self._call_api(
+        self.call_api_typed(
             bot,
             TypedApiCall::MessageCreate {
                 channel_id,
@@ -81,6 +97,11 @@ where
         )
         .await
     }
+}
+
+mod sealed {
+    pub trait Sealed {}
+    impl<S> Sealed for S where S: crate::Satori {}
 }
 
 #[cfg(test)]

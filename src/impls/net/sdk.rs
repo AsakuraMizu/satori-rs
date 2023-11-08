@@ -15,7 +15,7 @@ use crate::{
     error::{ApiError, MapSatoriError, SatoriError},
     impls::net::NET,
     structs::{BotId, Login, Status},
-    AppT, Satori, SdkT,
+    Satori, SatoriSdk,
 };
 
 type WsMessage = tokio_tungstenite::tungstenite::Message;
@@ -56,13 +56,12 @@ impl NetSDK {
     }
 }
 
-impl SdkT for NetSDK {
+impl SatoriSdk for NetSDK {
     #[allow(unused_assignments)]
     // TODO: seq
-    async fn start<S, A>(&self, s: &Arc<Satori<S, A>>)
+    async fn start<S>(&self, s: &Arc<S>)
     where
-        S: SdkT + Send + Sync + 'static,
-        A: AppT + Send + Sync + 'static,
+        S: Satori + Send + Sync + 'static,
     {
         let s = s.clone();
         let bots = self.bots.clone();
@@ -127,7 +126,7 @@ impl SdkT for NetSDK {
                         _ => break,
                     }
                 }
-                _ = s.stop.cancelled() => {
+                _ = s.stopped() => {
                     ws_stream.send(WsMessage::Close(None)).await.ok();
                     break;
                 }
@@ -135,15 +134,14 @@ impl SdkT for NetSDK {
         }
     }
 
-    async fn call_api<S, A>(
+    async fn call_api<S>(
         &self,
-        _s: &Arc<Satori<S, A>>,
+        _s: &Arc<S>,
         bot: &BotId,
         payload: RawApiCall,
     ) -> Result<Value, SatoriError>
     where
-        S: SdkT + Send + Sync + 'static,
-        A: AppT + Send + Sync + 'static,
+        S: Satori + Send + Sync + 'static,
     {
         if !self.bots.read().await.contains(bot) {
             return Err(SatoriError::InvalidBot);

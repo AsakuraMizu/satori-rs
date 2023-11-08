@@ -1,25 +1,24 @@
 use std::sync::Arc;
 
 use satori::{
+    api::SatoriApi,
     structs::{BotId, ChannelType, Event},
-    AppT, Satori, SdkT,
+    Satori, SatoriApp,
 };
 use tracing::debug;
 
 pub struct EchoApp {}
 
-impl AppT for EchoApp {
-    async fn start<S, A>(&self, _s: &Arc<Satori<S, A>>)
+impl SatoriApp for EchoApp {
+    async fn start<S>(&self, _s: &Arc<S>)
     where
-        S: SdkT + Send + Sync + 'static,
-        A: AppT + Send + Sync + 'static,
+        S: Satori + Send + Sync + 'static,
     {
     }
 
-    async fn handle_event<S, A>(&self, s: &Arc<Satori<S, A>>, event: Event)
+    async fn handle_event<S>(&self, s: &Arc<S>, event: Event)
     where
-        S: SdkT + Send + Sync + 'static,
-        A: AppT + Send + Sync + 'static,
+        S: Satori + Send + Sync + 'static,
     {
         if let Some(user) = &event.user {
             if user.id == event.self_id {

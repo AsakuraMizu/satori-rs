@@ -1,6 +1,6 @@
 use satori::{
     impls::onebot11::{Onebot11SDK, Onebot11SDKConfig},
-    Satori,
+    SatoriImpl,
 };
 use tracing_subscriber::filter::LevelFilter;
 use url::Host;
@@ -16,7 +16,7 @@ async fn main() {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_filter(filter))
         .init();
-    let app = Satori::new(
+    let app = SatoriImpl::new(
         Onebot11SDK::new(Onebot11SDKConfig {
             host: Host::parse(todo!()).unwrap(),
             ws_port: todo!(),
@@ -26,10 +26,6 @@ async fn main() {
         }),
         common::echo_app::EchoApp {},
     );
-    tokio::select! {
-        _ = app.start() => {}
-        _ = tokio::signal::ctrl_c() => {
-            app.shutdown();
-        }
-    };
+    app.start_with_graceful_shutdown(tokio::signal::ctrl_c())
+        .await;
 }

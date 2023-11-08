@@ -1,5 +1,10 @@
-mod _core;
-pub use _core::*;
+const SATORI: &str = "Satori";
+
+mod core;
+pub use core::*;
+
+mod macros;
+pub use macros::*;
 
 pub mod api;
 pub mod error;

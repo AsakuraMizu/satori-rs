@@ -6,7 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["http", "message", "net-sdk"]
+default = ["graceful-shutdown", "http", "message", "net-sdk"]
+graceful-shutdown = ["tokio/signal"]
 http = ["dep:headers", "dep:http"]
 reqwest = ["http", "dep:reqwest", "dep:url"]
 message = ["dep:quick-xml"]
@@ -50,7 +51,6 @@ tracing = "0.1.37"
 url = { version = "2.4.1", features = ["serde"], optional = true }
 
 [dev-dependencies]
-tokio = { version = "1.32.0", features = ["signal"] }
 tracing-subscriber = { version = "0.3.17", features = ["time", "fmt"] }
 
 [[example]]

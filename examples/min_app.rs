@@ -1,6 +1,6 @@
 use satori::{
     impls::net::sdk::{NetSDK, NetSDKConfig},
-    Satori,
+    SatoriImpl,
 };
 use tracing_subscriber::filter::LevelFilter;
 
@@ -15,16 +15,12 @@ async fn main() {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_filter(filter))
         .init();
-    let app = Satori::new(
+    let app = SatoriImpl::new(
         NetSDK::new(NetSDKConfig {
             ..Default::default()
         }),
         common::echo_app::EchoApp {},
     );
-    tokio::select! {
-        _ = app.start() => {}
-        _ = tokio::signal::ctrl_c() => {
-            app.shutdown();
-        }
-    };
+    app.start_with_graceful_shutdown(tokio::signal::ctrl_c())
+        .await;
 }

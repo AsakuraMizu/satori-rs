@@ -5,30 +5,28 @@ use satori::{
     error::{ApiError, SatoriError},
     impls::net::app::{NetAPPConfig, NetApp},
     structs::{BotId, Login},
-    AppT, Satori, SdkT,
+    Satori, SatoriImpl, SatoriSdk,
 };
 use serde_json::Value;
 use tracing_subscriber::filter::LevelFilter;
 
 pub struct Echo {}
 
-impl SdkT for Echo {
-    async fn start<S, A>(&self, _s: &Arc<Satori<S, A>>)
+impl SatoriSdk for Echo {
+    async fn start<S>(&self, _s: &Arc<S>)
     where
-        S: SdkT + Send + Sync + 'static,
-        A: AppT + Send + Sync + 'static,
+        S: Satori + Send + Sync + 'static,
     {
     }
 
-    async fn call_api<S, A>(
+    async fn call_api<S>(
         &self,
-        s: &Arc<Satori<S, A>>,
+        s: &Arc<S>,
         _bot: &BotId,
         payload: RawApiCall,
     ) -> Result<Value, SatoriError>
     where
-        S: SdkT + Send + Sync + 'static,
-        A: AppT + Send + Sync + 'static,
+        S: Satori + Send + Sync + 'static,
     {
         if payload.method == "stop" {
             s.shutdown();
@@ -54,17 +52,13 @@ async fn main() {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_filter(filter))
         .init();
-    let sdk = Satori::new(
+    let sdk = SatoriImpl::new(
         Echo {},
         NetApp::new(NetAPPConfig {
             port: 5141,
             ..Default::default()
         }),
     );
-    tokio::select! {
-        _ = sdk.start() => {}
-        _ = tokio::signal::ctrl_c() => {
-            sdk.shutdown();
-        }
-    };
+    sdk.start_with_graceful_shutdown(tokio::signal::ctrl_c())
+        .await;
 }

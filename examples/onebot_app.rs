@@ -11,7 +11,7 @@ use common::echo_app::EchoApp;
 satori! {
     struct OnebotApp {
         sdk: Onebot11SDK,
-        app: EchoApp,
+        app: (EchoApp, EchoApp),
     }
 }
 
@@ -32,7 +32,7 @@ async fn main() {
             access_token: None,
             self_id: todo!(),
         }),
-        EchoApp {},
+        (EchoApp {}, EchoApp {}),
     );
     app.start_with_graceful_shutdown(tokio::signal::ctrl_c())
         .await;

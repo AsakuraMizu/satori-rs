@@ -3,4 +3,3 @@ pub mod net;
 
 #[cfg(feature = "onebot11")]
 pub mod onebot11;
-

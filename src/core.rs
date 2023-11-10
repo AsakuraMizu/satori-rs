@@ -38,8 +38,9 @@ pub trait SatoriApp {
 }
 
 pub trait Satori {
+    fn spawn(self: &Arc<Self>) -> impl Future<Output = ()> + Send;
     fn start(self: &Arc<Self>) -> impl Future<Output = ()> + Send;
-    fn shutdown(self: &Arc<Self>);
+    fn shutdown(self: &Arc<Self>) -> impl Future<Output = ()> + Send;
 
     fn call_api<T>(
         self: &Arc<Self>,

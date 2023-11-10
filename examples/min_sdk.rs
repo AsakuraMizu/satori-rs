@@ -4,8 +4,9 @@ use satori::{
     api::RawApiCall,
     error::{ApiError, SatoriError},
     impls::net::app::{NetAPPConfig, NetApp},
+    satori,
     structs::{BotId, Login},
-    Satori, SatoriImpl, SatoriSdk,
+    Satori, SatoriSdk,
 };
 use serde_json::Value;
 use tracing_subscriber::filter::LevelFilter;
@@ -43,6 +44,13 @@ impl SatoriSdk for Echo {
     }
 }
 
+satori! {
+    struct MinSdk {
+        sdk: Echo,
+        app: NetApp,
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let filter = tracing_subscriber::filter::Targets::new().with_default(LevelFilter::INFO);
@@ -52,7 +60,7 @@ async fn main() {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_filter(filter))
         .init();
-    let sdk = SatoriImpl::new(
+    let sdk = MinSdk::new(
         Echo {},
         NetApp::new(NetAPPConfig {
             port: 5141,

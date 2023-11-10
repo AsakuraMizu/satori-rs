@@ -1,10 +1,19 @@
 use satori::{
     impls::net::sdk::{NetSDK, NetSDKConfig},
-    SatoriImpl,
+    satori,
 };
 use tracing_subscriber::filter::LevelFilter;
 
 mod common;
+
+use common::echo_app::EchoApp;
+
+satori! {
+    struct MinApp {
+        sdk: NetSDK,
+        app: EchoApp,
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -15,11 +24,11 @@ async fn main() {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_filter(filter))
         .init();
-    let app = SatoriImpl::new(
+    let app = MinApp::new(
         NetSDK::new(NetSDKConfig {
             ..Default::default()
         }),
-        common::echo_app::EchoApp {},
+        EchoApp {},
     );
     app.start_with_graceful_shutdown(tokio::signal::ctrl_c())
         .await;

@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["graceful-shutdown", "http", "message", "net-sdk"]
+default = ["graceful-shutdown"]
 graceful-shutdown = ["tokio/signal"]
 http = ["dep:headers", "dep:http"]
 reqwest = ["http", "dep:reqwest", "dep:url"]
@@ -38,13 +38,7 @@ serde = { version = "1.0.188", features = ["derive"] }
 serde_json = "1.0.107"
 serde_repr = "0.1.16"
 thiserror = "1.0.49"
-tokio = { version = "1.32.0", features = [
-    "rt",
-    "sync",
-    "time",
-    "macros",
-    "rt-multi-thread",
-] }
+tokio = { version = "1.32.0", features = ["macros", "rt", "sync", "time"] }
 tokio-tungstenite = { version = "0.20.1", optional = true }
 tokio-util = "0.7.9"
 tracing = "0.1.37"
@@ -52,10 +46,15 @@ url = { version = "2.4.1", features = ["serde"], optional = true }
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.17", features = ["time", "fmt"] }
+tokio = { version = "1.32.0", features = ["rt-multi-thread"] }
 
 [[example]]
 name = "min_sdk"
 required-features = ["net-app"]
+
+[[example]]
+name = "min_app"
+required-features = ["net-sdk"]
 
 [[example]]
 name = "onebot_app"

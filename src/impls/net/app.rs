@@ -27,14 +27,14 @@ use crate::{
 type WsMessage = axum::extract::ws::Message;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NetAPPConfig {
+pub struct NetAppConfig {
     pub host: IpAddr,
     pub port: u16,
     pub path: Option<String>,
     pub token: Option<String>,
 }
 
-impl Default for NetAPPConfig {
+impl Default for NetAppConfig {
     fn default() -> Self {
         Self {
             host: IpAddr::V4(Ipv4Addr::LOCALHOST),
@@ -47,12 +47,12 @@ impl Default for NetAPPConfig {
 
 #[derive(Debug)]
 pub struct NetApp {
-    config: NetAPPConfig,
+    config: NetAppConfig,
     tx: broadcast::Sender<Event>,
 }
 
 impl NetApp {
-    pub fn new(config: NetAPPConfig) -> Self {
+    pub fn new(config: NetAppConfig) -> Self {
         let (tx, _) = broadcast::channel(128);
         Self { config, tx }
     }

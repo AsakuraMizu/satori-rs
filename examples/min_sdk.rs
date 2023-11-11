@@ -3,17 +3,17 @@ use std::sync::Arc;
 use satori::{
     api::RawApiCall,
     error::{ApiError, SatoriError},
-    impls::net::app::{NetAPPConfig, NetApp},
+    impls::net::app::{NetAppConfig, NetApp},
     satori,
     structs::{BotId, Login},
-    Satori, SatoriSdk,
+    Satori, SatoriSDK,
 };
 use serde_json::Value;
 use tracing_subscriber::filter::LevelFilter;
 
 pub struct Echo {}
 
-impl SatoriSdk for Echo {
+impl SatoriSDK for Echo {
     async fn start<S>(&self, _s: &Arc<S>)
     where
         S: Satori + Send + Sync + 'static,
@@ -45,7 +45,7 @@ impl SatoriSdk for Echo {
 }
 
 satori! {
-    struct MinSdk {
+    struct MinSDK {
         sdk: Echo,
         app: NetApp,
     }
@@ -60,9 +60,9 @@ async fn main() {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_filter(filter))
         .init();
-    let sdk = MinSdk::new(
+    let sdk = MinSDK::new(
         Echo {},
-        NetApp::new(NetAPPConfig {
+        NetApp::new(NetAppConfig {
             port: 5141,
             ..Default::default()
         }),

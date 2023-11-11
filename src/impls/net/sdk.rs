@@ -15,7 +15,7 @@ use crate::{
     error::{ApiError, MapSatoriError, SatoriError},
     impls::net::NET,
     structs::{BotId, Login, Status},
-    Satori, SatoriSdk,
+    Satori, SatoriSDK,
 };
 
 type WsMessage = tokio_tungstenite::tungstenite::Message;
@@ -56,7 +56,7 @@ impl NetSDK {
     }
 }
 
-impl SatoriSdk for NetSDK {
+impl SatoriSDK for NetSDK {
     #[allow(unused_assignments)]
     // TODO: seq
     async fn start<S>(&self, s: &Arc<S>)

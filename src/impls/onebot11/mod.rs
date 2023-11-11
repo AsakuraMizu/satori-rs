@@ -12,7 +12,7 @@ use crate::{
     api::{RawApiCall, TypedApiCall},
     error::{ApiError, MapSatoriError, SatoriError},
     structs::{BotId, Channel, ChannelType, Event, Login, Message},
-    Satori, SatoriSdk,
+    Satori, SatoriSDK,
 };
 
 pub mod events;
@@ -62,7 +62,7 @@ impl Onebot11SDK {
     }
 }
 
-impl SatoriSdk for Onebot11SDK {
+impl SatoriSDK for Onebot11SDK {
     async fn start<S>(&self, s: &Arc<S>) -> ()
     where
         S: Satori + Send + Sync + 'static,

@@ -60,7 +60,7 @@ macro_rules! __satori_impl_start_sdk {
                 let me = $self.clone();
                 async move {
                     let ( $($skip,)* s, .. ) = &me.sdk;
-                    $crate::SatoriSdk::start(s, &me).await
+                    $crate::SatoriSDK::start(s, &me).await
                 }
             });
         )*
@@ -88,7 +88,7 @@ macro_rules! __satori_impl_start_app {
 macro_rules! __satori_impl_call_api {
     ( ( $self:ident, $bot:ident, $payload:ident ), $( ( $($skip:tt)* ) $e:tt, )* ) => {
         tokio::select!(
-            $((s, true) = async { let ( $($skip,)* s, .. ) = &$self.sdk; (s, $crate::SatoriSdk::has_bot(s, $bot).await) } => $crate::SatoriSdk::call_api(s, $self, $bot, $payload).await,)*
+            $((s, true) = async { let ( $($skip,)* s, .. ) = &$self.sdk; (s, $crate::SatoriSDK::has_bot(s, $bot).await) } => $crate::SatoriSDK::call_api(s, $self, $bot, $payload).await,)*
             else => Err($crate::error::SatoriError::InvalidBot),
         )
     };
@@ -117,7 +117,7 @@ macro_rules! __satori_impl_get_logins {
     ( ( $self:ident, $result:ident ), $( ( $($skip:tt)* ) $e:tt, )* ) => {
         $(
             let ( $($skip,)* s, .. ) = &$self.sdk;
-            $result.append(&mut $crate::SatoriSdk::get_logins(s).await);
+            $result.append(&mut $crate::SatoriSDK::get_logins(s).await);
         )*
     };
 }
@@ -125,7 +125,8 @@ macro_rules! __satori_impl_get_logins {
 #[macro_export]
 macro_rules! satori {
     {$vis:vis struct $name:ident { sdk: $s:tt, app: $a:tt, }} => {
-        // $crate::__satori_assert_impl!($s: $crate::SatoriSdk);
+        // $crate::__satori_assert_impl!($s: $crate::SatoriSDK);
+        // $crate::__satori_assert_impl!($a: $crate::SatoriApp);
 
         $vis struct $name {
             sdk: $crate::__satori_wrap_tuple!($s),

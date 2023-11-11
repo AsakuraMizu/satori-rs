@@ -8,7 +8,7 @@ use crate::{
     structs::{BotId, Event, Login},
 };
 
-pub trait SatoriSdk {
+pub trait SatoriSDK {
     fn start<S>(&self, s: &Arc<S>) -> impl Future<Output = ()> + Send
     where
         S: Satori + Send + Sync + 'static;

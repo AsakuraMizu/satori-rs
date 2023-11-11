@@ -131,7 +131,7 @@ macro_rules! satori {
             sdk: $crate::__satori_wrap_tuple!($s),
             app: $crate::__satori_wrap_tuple!($a),
             stop: tokio_util::sync::CancellationToken,
-            set: tokio::sync::Mutex<tokio::task::JoinSet<()>>,
+            set: tokio::sync::RwLock<tokio::task::JoinSet<()>>,
         }
 
         impl $name {
@@ -140,7 +140,7 @@ macro_rules! satori {
                     sdk: $crate::__satori_convert_tuple!($s, sdk),
                     app: $crate::__satori_convert_tuple!($a, app),
                     stop: tokio_util::sync::CancellationToken::new(),
-                    set: tokio::sync::Mutex::new(tokio::task::JoinSet::new()),
+                    set: tokio::sync::RwLock::new(tokio::task::JoinSet::new()),
                 })
             }
         }
@@ -148,21 +148,22 @@ macro_rules! satori {
         impl $crate::Satori for $name {
             async fn spawn(self: &std::sync::Arc<Self>) {
                 tracing::info!(target: $crate::SATORI, "Starting...");
-                let mut set = self.set.lock().await;
+                let mut set = self.set.write().await;
                 $crate::__satori_expand!(__satori_impl_start_sdk, (self, set), $s);
                 $crate::__satori_expand!(__satori_impl_start_app, (self, set), $a);
             }
 
             async fn start(self: &std::sync::Arc<Self>) {
                 $crate::Satori::spawn(self).await;
-                let mut set = self.set.lock().await;
-                while !set.is_empty() { let _ = set.join_next().await; }
+                while !self.set.read().await.is_empty() {
+                    let _ = self.set.write().await.join_next().await; 
+                }
             }
 
             async fn shutdown(self: &std::sync::Arc<Self>) {
                 tracing::info!(target: $crate::SATORI, "Stopping...");
                 self.stop.cancel();
-                self.set.lock().await.shutdown().await;
+                self.set.write().await.shutdown().await;
             }
 
             async fn call_api<T>(self: &std::sync::Arc<Self>, bot: &$crate::structs::BotId, payload: T) -> Result<serde_json::Value, $crate::error::SatoriError>
@@ -195,8 +196,10 @@ macro_rules! satori {
         {
             $vis async fn start_with_graceful_shutdown(self: &std::sync::Arc<Self>, signal: impl std::future::Future) {
                 $crate::Satori::spawn(self).await;
-                signal.await;
-                $crate::Satori::shutdown(self).await;
+                tokio::select! {
+                    _ = signal => $crate::Satori::shutdown(self).await,
+                    _ = async { while !self.set.read().await.is_empty() {} } => {}
+                }
             }
         }
     };

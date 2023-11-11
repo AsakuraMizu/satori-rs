@@ -30,13 +30,13 @@ impl SatoriSdk for Echo {
         S: Satori + Send + Sync + 'static,
     {
         if payload.method == "stop" {
-            s.shutdown();
+            s.shutdown().await;
         }
         Err(ApiError::ServerError(500).into())
     }
 
     async fn has_bot(&self, _bot: &BotId) -> bool {
-        false
+        true
     }
 
     async fn get_logins(&self) -> Vec<Login> {

@@ -192,7 +192,6 @@ macro_rules! satori {
             }
         }
 
-        #[cfg(feature = "graceful-shutdown")]
         impl $name
         {
             $vis async fn start_with_graceful_shutdown(self: &std::sync::Arc<Self>, signal: impl std::future::Future) {

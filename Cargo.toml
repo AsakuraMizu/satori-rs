@@ -6,8 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["graceful-shutdown"]
-graceful-shutdown = ["tokio/signal"]
+default = []
 http = ["dep:headers", "dep:http"]
 reqwest = ["http", "dep:reqwest"]
 message = ["dep:quick-xml"]
@@ -48,7 +47,7 @@ tracing = "0.1.37"
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.17", features = ["time", "fmt"] }
-tokio = { version = "1.32.0", features = ["rt-multi-thread"] }
+tokio = { version = "1.32.0", features = ["rt-multi-thread", "signal"] }
 
 [[example]]
 name = "min_sdk"

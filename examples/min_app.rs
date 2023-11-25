@@ -2,7 +2,6 @@ use satori::{
     impls::net::sdk::{NetSDK, NetSDKConfig},
     satori,
 };
-use tracing_subscriber::filter::LevelFilter;
 
 mod common;
 
@@ -17,13 +16,8 @@ satori! {
 
 #[tokio::main]
 async fn main() {
-    let filter = tracing_subscriber::filter::Targets::new().with_default(LevelFilter::INFO);
-    use tracing_subscriber::{
-        prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, Layer,
-    };
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer().with_filter(filter))
-        .init();
+    tracing_subscriber::fmt::init();
+
     let app = MinApp::new(
         NetSDK::new(NetSDKConfig {
             ..Default::default()

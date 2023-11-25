@@ -188,7 +188,7 @@ impl SatoriApp for NetApp {
     where
         S: Satori + Send + Sync + 'static,
     {
-        let path = self.config.path.as_deref().unwrap_or("");
+        let path = self.config.path.as_deref().unwrap_or_default();
         let app = axum::Router::new()
             .route(
                 &format!("{}/v1/events", &path),

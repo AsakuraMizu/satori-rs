@@ -9,7 +9,7 @@ edition = "2021"
 default = ["graceful-shutdown"]
 graceful-shutdown = ["tokio/signal"]
 http = ["dep:headers", "dep:http"]
-reqwest = ["http", "dep:reqwest", "dep:url"]
+reqwest = ["http", "dep:reqwest"]
 message = ["dep:quick-xml"]
 net-app = [
     "dep:axum",
@@ -22,8 +22,10 @@ net-sdk = [
     "reqwest",
 ]
 onebot11 = [
-    "dep:tokio-tungstenite",
-    "reqwest",
+    "dep:futures-util",
+    "dep:http",
+    "dep:rand",
+    "dep:tokio-tungstenite"
 ]
 
 [dependencies]
@@ -33,6 +35,7 @@ futures-util = { version = "0.3.28", optional = true }
 headers = { version = "0.3.9", optional = true }
 http = { version = "0.2.9", optional = true }
 quick-xml = { version = "0.31.0", features = ["serialize"], optional = true }
+rand = { version = "0.8.5", optional = true }
 reqwest = { version = "0.11.22", features = ["json"], optional = true }
 serde = { version = "1.0.188", features = ["derive"] }
 serde_json = "1.0.107"
@@ -42,7 +45,6 @@ tokio = { version = "1.32.0", features = ["macros", "rt", "sync", "time"] }
 tokio-tungstenite = { version = "0.20.1", optional = true }
 tokio-util = "0.7.9"
 tracing = "0.1.37"
-url = { version = "2.4.1", features = ["serde"], optional = true }
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.17", features = ["time", "fmt"] }

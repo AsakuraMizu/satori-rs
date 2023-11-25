@@ -7,7 +7,6 @@ use serde_json::Value;
 use tokio::{sync::RwLock, time::Instant};
 use tokio_tungstenite::connect_async;
 use tracing::{error, info, trace};
-use url::Host;
 
 use super::{Logins, Signal};
 use crate::{
@@ -22,7 +21,7 @@ type WsMessage = tokio_tungstenite::tungstenite::Message;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NetSDKConfig {
-    pub host: Host,
+    pub host: String,
     pub port: u16,
     pub path: Option<String>,
     pub token: Option<String>,
@@ -31,7 +30,7 @@ pub struct NetSDKConfig {
 impl Default for NetSDKConfig {
     fn default() -> Self {
         Self {
-            host: Host::Ipv4(Ipv4Addr::LOCALHOST),
+            host: Ipv4Addr::LOCALHOST.to_string(),
             port: 5140,
             path: None,
             token: None,
@@ -70,7 +69,7 @@ impl SatoriSDK for NetSDK {
             "ws://{}:{}{}/v1/events",
             self.config.host,
             self.config.port,
-            self.config.path.as_deref().unwrap_or("")
+            self.config.path.as_deref().unwrap_or_default()
         );
         let (mut ws_stream, _) = connect_async(&addr).await.unwrap();
         info!(target: NET, "WebSocket connected with {addr}");
@@ -102,7 +101,7 @@ impl SatoriSDK for NetSDK {
                                     info!(target: NET, "receive event: {:?}", event);
                                     // TODO: seq
                                     seq = event.id;
-                                    s.handle_event(event).await;
+                                    s.handle_event(event);
                                 }
                                 Signal::Pong { .. } => {}
                                 Signal::Ready { body: Logins { logins }, .. } => {
@@ -153,7 +152,7 @@ impl SatoriSDK for NetSDK {
                 "http://{}:{}{}/v1/{}",
                 self.config.host,
                 self.config.port,
-                self.config.path.as_deref().unwrap_or(""),
+                self.config.path.as_deref().unwrap_or_default(),
                 payload.method
             ))
             .header("X-Platform", &bot.platform)

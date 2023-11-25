@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
@@ -24,4 +25,28 @@ pub enum Event {
     Message(Message),
     #[serde(other)]
     Unknown,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Action {
+    pub action: String,
+    pub params: Value,
+    pub echo: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ActionResp {
+    pub status: String,
+    pub retcode: i32,
+    pub msg: Option<String>,
+    pub wording: Option<String>,
+    pub data: Value,
+    pub echo: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum EventOrActionResp {
+    Event(Event),
+    ActionResp(ActionResp),
 }

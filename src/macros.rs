@@ -59,7 +59,7 @@ macro_rules! __satori_impl_start_sdk {
             $set.spawn({
                 let me = $self.clone();
                 async move {
-                    let ( $($skip,)* s, .. ) = &me.sdk;
+                    let ( $($skip,)* ref s, .. ) = me.sdk;
                     $crate::SatoriSDK::start(s, &me).await
                 }
             });
@@ -75,7 +75,7 @@ macro_rules! __satori_impl_start_app {
             $set.spawn({
                 let me = $self.clone();
                 async move {
-                    let ( $($skip,)* a, .. ) = &me.app;
+                    let ( $($skip,)* ref a, .. ) = me.app;
                     $crate::SatoriApp::start(a, &me).await
                 }
             });
@@ -98,7 +98,7 @@ macro_rules! __satori_impl_call_api {
 #[doc(hidden)]
 macro_rules! __satori_impl_handle_event {
     ( ( $self:ident, $event:ident ), $( ( $($skip:tt)* ) $e:tt, )* ) => {
-        tokio::join!($(
+        $(
             tokio::spawn({
                 let me = $self.clone();
                 let event = $event.clone();
@@ -106,8 +106,8 @@ macro_rules! __satori_impl_handle_event {
                     let ( $($skip,)* a, .. ) = &me.app;
                     $crate::SatoriApp::handle_event(a, &me, event).await
                 }
-            }),
-        )*)
+            });
+        )*
     };
 }
 
@@ -176,9 +176,9 @@ macro_rules! satori {
                 $crate::__satori_expand!(__satori_impl_call_api, (self, bot, payload), $s)
             }
 
-            async fn handle_event(self: &std::sync::Arc<Self>, event: $crate::structs::Event) {
+            fn handle_event(self: &std::sync::Arc<Self>, event: $crate::structs::Event) {
                 tracing::debug!(target: $crate::SATORI, ?event, "handle event");
-                let _ = $crate::__satori_expand!(__satori_impl_handle_event, (self, event), $a);
+                $crate::__satori_expand!(__satori_impl_handle_event, (self, event), $a);
             }
 
             async fn get_logins(self: &std::sync::Arc<Self>) -> Vec<$crate::structs::Login> {

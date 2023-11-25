@@ -49,7 +49,7 @@ pub trait Satori {
     ) -> impl Future<Output = Result<Value, SatoriError>> + Send
     where
         T: IntoRawApiCall + Send;
-    fn handle_event(self: &Arc<Self>, event: Event) -> impl Future<Output = ()> + Send;
+    fn handle_event(self: &Arc<Self>, event: Event);
     fn get_logins(self: &Arc<Self>) -> impl Future<Output = Vec<Login>> + Send;
 
     fn stopped(self: &Arc<Self>) -> impl Future<Output = ()> + Send;
